@@ -20,7 +20,7 @@ export const typeColors ={
 };
 
 export const getTypeGradient = (type) => {
-    return typeColors[type.toLowerCase] || 'from-gray-400 to-gray-600';
+    return typeColors[type.toLowerCase()] || 'from-gray-400 to-gray-600';
 };
 
 export const formatPokemonId = (id) => {
@@ -36,7 +36,7 @@ export const formatWeight = (weight) => {
 };
 
 export const capitalizeFirst = (str) => {
-    return str.charAt(0).toUppercase() + str.slice(1);
+    return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
 export const formatStatName = (statName) => {

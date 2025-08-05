@@ -6,25 +6,31 @@ import { PokemonCard } from '../components/PokemonCard';
 import { NavigationButtons } from '../components/NavigationButtons';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
+import { getBackgroundGradient } from '../utils/pokemonUtils';
 
 export const PokedexPage = () => {
   const [currentPokemonId, setCurrentPokemonId] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [darkMode, setDarkMode] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState(null);
   const { pokemon, loading, error } = usePokemon(currentPokemonId);
 
   const handlePokemonSelect = (id) => {
+    setIsNavigating(true);
     setCurrentPokemonId(id);
   };
 
   const handlePrevious = () => {
     if (currentPokemonId > 1) {
+      setIsNavigating(true);
       setCurrentPokemonId(currentPokemonId - 1);
     }
   };
 
   const handleNext = () => {
     if (currentPokemonId < 1010) {
+      setIsNavigating(true);
       setCurrentPokemonId(currentPokemonId + 1);
     }
   };
@@ -33,6 +39,7 @@ export const PokedexPage = () => {
     if (term.trim() === '') return;
     
     try {
+      setIsNavigating(true);
       const searchValue = term.toLowerCase().trim();
       const isNumeric = /^\d+$/.test(searchValue);
       
@@ -51,9 +58,27 @@ export const PokedexPage = () => {
       setSearchTerm('');
     } catch (error) {
       console.error('Search failed:', error);
+      setIsNavigating(false);
     }
   };
 
+  const handleSearchChange = (term) => {
+    setSearchTerm(term);
+    
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    if (term.trim() === '') {
+      return;
+    }
+    
+    const newTimeout = setTimeout(() => {
+      handleSearch(term);
+    }, 2000);
+    
+    setSearchTimeout(newTimeout);
+  };
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleSearch(searchTerm);
@@ -63,9 +88,15 @@ export const PokedexPage = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowLeft') {
-        handlePrevious();
+        if (currentPokemonId > 1) {
+          setIsNavigating(true);
+          setCurrentPokemonId(currentPokemonId - 1);
+        }
       } else if (e.key === 'ArrowRight') {
-        handleNext();
+        if (currentPokemonId < 1010) {
+          setIsNavigating(true);
+          setCurrentPokemonId(currentPokemonId + 1);
+        }
       }
     };
 
@@ -73,11 +104,36 @@ export const PokedexPage = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentPokemonId]);
 
-  const backgroundClass = darkMode
-    ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black'
-    : 'bg-gradient-to-br from-green-400 via-green-500 to-green-700';
+  useEffect(() => {
+    if (!loading && pokemon) {
+      setIsNavigating(false);
+    }
+  }, [loading, pokemon]);
 
-  if (loading) {
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+  
+  const getBackgroundClass = () => {
+    if (darkMode) {
+      return 'bg-gradient-to-br from-gray-900 via-gray-800 to-black';
+    }
+    
+    if (pokemon && pokemon.types && pokemon.types.length > 0) {
+      const primaryType = pokemon.types[0].type.name;
+      return `bg-gradient-to-br ${getBackgroundGradient(primaryType)}`;
+    }
+    
+    return 'bg-gradient-to-br from-gray-500 via-gray-600 to-black';
+  };
+  
+  const backgroundClass = getBackgroundClass();
+
+  if (loading || isNavigating) {
     return (
       <div className={`min-h-screen ${backgroundClass}`}>
         <LoadingSpinner />
@@ -107,16 +163,7 @@ export const PokedexPage = () => {
         currentPokemonId={currentPokemonId}
         onPokemonSelect={handlePokemonSelect}
         searchTerm={searchTerm}
-        onSearchChange={(term) => {
-          setSearchTerm(term);
-          if (term === '') return;
-          
-          const timeoutId = setTimeout(() => {
-            handleSearch(term);
-          }, 4000);
-          
-          return () => clearTimeout(timeoutId);
-        }}
+        onSearchChange={handleSearchChange}
         darkMode={darkMode}
         onDarkModeToggle={() => setDarkMode(!darkMode)}
       />
@@ -131,7 +178,6 @@ export const PokedexPage = () => {
 
         <PokemonCard pokemon={pokemon} />
       </main>
-      
     </motion.div>
   );
 };
